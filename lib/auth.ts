@@ -17,5 +17,11 @@ export const auth = betterAuth({
             clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
         },
     },
+    account: {
+        accountLinking: {
+            enabled: true, // เปิดใช้งานการรวมบัญชีที่อีเมลตรงกัน
+            trustedProviders: ["google"],
+        },
+    },
     plugins: [nextCookies(), admin()]
-});
+});

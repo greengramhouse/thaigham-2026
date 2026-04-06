@@ -1,5 +1,5 @@
 import { getStudents, getAcademicYears } from "@/app/actions/student";
-import StudentTable from "../components/student-table";
+import StudentTable from "../components/Student-table";
 
 export default async function StudentTablePage() {
     // ดึงข้อมูลนักเรียน

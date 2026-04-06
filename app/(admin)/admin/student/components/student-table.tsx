@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Edit2, Plus, Trash2, Search, X, Filter, Users, UserCog, Loader2, AlertTriangle } from "lucide-react";
 import { deleteStudent, updateStudentStatus } from "@/app/actions/student";
-import StudentForm from "./student-form";
-
+import StudentForm from "./Student-form";
+import ButtonPdfStudent from "./Button-pdf-student";
 
 const STATUS_OPTIONS = [
   "กำลังศึกษา",
@@ -41,14 +41,37 @@ export default function StudentTable({
     return active ? String(active.id) : "all";
   });
 
+  // === State สำหรับเก็บระดับชั้น/ห้อง ที่เลือก ===
+  const [selectedClass, setSelectedClass] = useState<string>("all");
+
+  // รีเซ็ตการค้นหาชั้นเรียน เมื่อมีการเปลี่ยนปีการศึกษา
+  useEffect(() => {
+    setSelectedClass("all");
+  }, [selectedYear]);
+
   // ฟังก์ชันช่วยดึงข้อมูล Enrollment ให้ตรงกับปีที่เลือก
-  const getEnrollmentToDisplay = (student: any) => {
+  const getEnrollmentToDisplay = (student: any, targetYear: string) => {
     if (!student.enrollments || student.enrollments.length === 0) return null;
-    if (selectedYear === "all") return student.enrollments[0]; 
-    return student.enrollments.find((e: any) => String(e.academicYearId) === selectedYear) || null;
+    if (targetYear === "all") return student.enrollments[0]; 
+    return student.enrollments.find((e: any) => String(e.academicYearId) === targetYear) || null;
   };
 
-  // กรองนักเรียนตาม "คำค้นหา" และ "ปีการศึกษา"
+  // ดึงรายการระดับชั้นและห้องเรียนที่มีอยู่จริงในปีการศึกษานั้นๆ เพื่อมาทำ Dropdown
+  const availableClasses = useMemo(() => {
+    const classes = new Set<string>();
+    initialStudents.forEach((student) => {
+      const displayEnrollment = getEnrollmentToDisplay(student, selectedYear);
+      if (displayEnrollment?.classLevel) {
+        const level = displayEnrollment.classLevel;
+        const room = displayEnrollment.classRoom != null ? ` / ${displayEnrollment.classRoom}` : "";
+        classes.add(`${level}${room}`);
+      }
+    });
+    // จัดเรียงตัวอักษรภาษาไทย
+    return Array.from(classes).sort((a, b) => a.localeCompare(b, 'th'));
+  }, [initialStudents, selectedYear]);
+
+  // กรองนักเรียนตาม "คำค้นหา", "ปีการศึกษา" และ "ชั้นเรียน"
   const filteredStudents = useMemo(() => {
     return initialStudents.filter((student) => {
       // 1. กรองตามปีการศึกษา
@@ -57,7 +80,18 @@ export default function StudentTable({
          if (!hasEnrollmentInYear) return false;
       }
 
-      // 2. กรองตามคำค้นหา
+      const displayEnrollment = getEnrollmentToDisplay(student, selectedYear);
+
+      // 2. กรองตามระดับชั้น/ห้อง
+      if (selectedClass !== "all") {
+        if (!displayEnrollment) return false;
+        const level = displayEnrollment.classLevel;
+        const room = displayEnrollment.classRoom != null ? ` / ${displayEnrollment.classRoom}` : "";
+        const classRoomStr = `${level}${room}`;
+        if (classRoomStr !== selectedClass) return false;
+      }
+
+      // 3. กรองตามคำค้นหา (ค้นจากชื่อ, นามสกุล, รหัส)
       const term = search.toLowerCase();
       return (
         student.firstName?.toLowerCase().includes(term) ||
@@ -66,7 +100,7 @@ export default function StudentTable({
         student.codeCitizen?.includes(term)
       );
     });
-  }, [initialStudents, search, selectedYear]);
+  }, [initialStudents, search, selectedYear, selectedClass]);
 
   // เปลี่ยนมาใช้ Sonner Toast แบบ Action แทน Window.confirm()
   const handleDelete = (student: any) => {
@@ -111,7 +145,7 @@ export default function StudentTable({
   const handleSaveStatus = async () => {
     if (!statusModalStudent) return;
     
-    const enrollment = getEnrollmentToDisplay(statusModalStudent);
+    const enrollment = getEnrollmentToDisplay(statusModalStudent, selectedYear);
     if (!enrollment) {
       toast.error("ไม่พบข้อมูลประวัติการเรียนในปีการศึกษานี้");
       return;
@@ -150,12 +184,15 @@ export default function StudentTable({
               </div>
             </div>
           </div>
+          <div className="flex gap-2">
+          <ButtonPdfStudent filteredStudents={filteredStudents} />
 
           {!readOnly && (
             <Button onClick={handleAddNew} className="w-full sm:w-auto shadow-sm h-11 px-6 cursor-pointer">
               <Plus className="mr-2 h-5 w-5" /> เพิ่มนักเรียนใหม่
             </Button>
           )}
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -172,6 +209,21 @@ export default function StudentTable({
                 <option key={year.id} value={year.id}>
                   ปีการศึกษา {year.year} {year.isActive ? " (ปัจจุบัน)" : ""}
                 </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Dropdown เลือกระดับชั้น/ห้อง */}
+          <div className="relative w-full sm:w-48">
+            <Filter className="absolute left-3 top-3 h-4 w-4 text-green-500" />
+            <select
+              className="flex h-11 w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2 text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer hover:bg-muted/50 appearance-none"
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+            >
+              <option value="all">ทุกชั้นเรียน / ห้อง</option>
+              {availableClasses.map((cls) => (
+                <option key={cls} value={cls}>ชั้น {cls}</option>
               ))}
             </select>
           </div>
@@ -217,7 +269,7 @@ export default function StudentTable({
             <tbody className="divide-y">
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => {
-                  const displayEnrollment = getEnrollmentToDisplay(student);
+                  const displayEnrollment = getEnrollmentToDisplay(student, selectedYear);
 
                   return (
                     <tr key={student.id} className="transition-colors hover:bg-primary/[0.02]">
@@ -230,7 +282,7 @@ export default function StudentTable({
                       <td className="p-4 align-middle">
                         {displayEnrollment ? (
                           <span className="text-muted-foreground font-medium">
-                            {displayEnrollment.classLevel} / {displayEnrollment.classRoom || "-"}
+                            {displayEnrollment.classLevel} {displayEnrollment.classRoom != null ? `/ ${displayEnrollment.classRoom}` : ""}
                           </span>
                         ) : "-"}
                       </td>
@@ -359,7 +411,7 @@ export default function StudentTable({
               </Button>
             </div>
             <div className="p-6 overflow-y-auto">
-              <StudentForm 
+              <StudentForm
                 initialData={editingStudent} 
                 academicYears={academicYears}
                 onSuccess={closeModal} 
