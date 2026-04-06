@@ -1,5 +1,5 @@
-import { getStudents } from "@/app/actions/student";
 import StudentTable from "@/app/(admin)/admin/student/components/Student-table";
+import { getStudents } from "@/app/actions/student";
 
 export default async function UserStudentTablePage() {
     const response = await getStudents();
