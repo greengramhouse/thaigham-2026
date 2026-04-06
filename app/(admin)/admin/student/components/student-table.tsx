@@ -4,10 +4,18 @@ import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Edit2, Plus, Trash2, Search, X, Filter, Users, UserCog, Loader2, AlertTriangle } from "lucide-react";
+import { 
+  Edit2, Plus, Trash2, Search, X, Filter, 
+  Users, UserCog, Loader2, AlertTriangle, 
+  ChevronLeft, ChevronRight, FileText
+} from "lucide-react";
+
+/**
+ * --- สำหรับนำไปใช้จริง (โปรดลบคอมเมนต์บรรทัดเหล่านี้ออกเมื่ออยู่ในโปรเจกต์ของคุณ) ---
+ */
 import { deleteStudent, updateStudentStatus } from "@/app/actions/student";
-import StudentForm from "./Student-form";
 import ButtonPdfStudent from "./Button-pdf-student";
+import StudentForm from "./Student-form";
 
 const STATUS_OPTIONS = [
   "กำลังศึกษา",
@@ -16,6 +24,8 @@ const STATUS_OPTIONS = [
   "พ้นสภาพ",
   "จบการศึกษา"
 ];
+
+const ITEMS_PER_PAGE = 20; // กำหนดจำนวนนักเรียนต่อ 1 หน้า
 
 export default function StudentTable({ 
   initialStudents = [], 
@@ -35,19 +45,27 @@ export default function StudentTable({
   const [newStatus, setNewStatus] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  // === State สำหรับเก็บปีการศึกษาที่เลือก ===
+  // State สำหรับเก็บปีการศึกษาที่เลือก
   const [selectedYear, setSelectedYear] = useState<string>(() => {
     const active = academicYears.find(y => y.isActive);
     return active ? String(active.id) : "all";
   });
 
-  // === State สำหรับเก็บระดับชั้น/ห้อง ที่เลือก ===
+  // State สำหรับเก็บระดับชั้น/ห้อง ที่เลือก
   const [selectedClass, setSelectedClass] = useState<string>("all");
+
+  // State สำหรับ Pagination
+  const [currentPage, setCurrentPage] = useState(1);
 
   // รีเซ็ตการค้นหาชั้นเรียน เมื่อมีการเปลี่ยนปีการศึกษา
   useEffect(() => {
     setSelectedClass("all");
   }, [selectedYear]);
+
+  // รีเซ็ตหน้ากลับไปหน้าที่ 1 เสมอเมื่อมีการค้นหาหรือเปลี่ยนฟิลเตอร์
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedYear, selectedClass]);
 
   // ฟังก์ชันช่วยดึงข้อมูล Enrollment ให้ตรงกับปีที่เลือก
   const getEnrollmentToDisplay = (student: any, targetYear: string) => {
@@ -71,7 +89,7 @@ export default function StudentTable({
     return Array.from(classes).sort((a, b) => a.localeCompare(b, 'th'));
   }, [initialStudents, selectedYear]);
 
-  // กรองนักเรียนตาม "คำค้นหา", "ปีการศึกษา" และ "ชั้นเรียน"
+  // กรองนักเรียนตาม "คำค้นหา", "ปีการศึกษา" และ "ชั้นเรียน" (ข้อมูลทั้งหมดหลังกรอง)
   const filteredStudents = useMemo(() => {
     return initialStudents.filter((student) => {
       // 1. กรองตามปีการศึกษา
@@ -102,7 +120,13 @@ export default function StudentTable({
     });
   }, [initialStudents, search, selectedYear, selectedClass]);
 
-  // เปลี่ยนมาใช้ Sonner Toast แบบ Action แทน Window.confirm()
+  // คำนวณข้อมูลสำหรับการแบ่งหน้า (Pagination)
+  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+  const paginatedStudents = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredStudents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredStudents, currentPage]);
+
   const handleDelete = (student: any) => {
     toast("ยืนยันการลบข้อมูลนักเรียน", {
       description: `คุณกำลังจะลบข้อมูลของ ${student.firstName} ${student.lastName} (ประวัติการเรียนจะถูกลบไปด้วย)`,
@@ -141,7 +165,6 @@ export default function StudentTable({
     setEditingStudent(null);
   };
 
-  // จัดการบันทึกสถานะแบบด่วน
   const handleSaveStatus = async () => {
     if (!statusModalStudent) return;
     
@@ -185,7 +208,12 @@ export default function StudentTable({
             </div>
           </div>
           <div className="flex gap-2">
-          <ButtonPdfStudent filteredStudents={filteredStudents} />
+          
+          <ButtonPdfStudent 
+            filteredStudents={filteredStudents} // ส่งข้อมูลทั้งหมดที่กรองแล้ว (ไม่โดนตัด pagination) ไปทำ PDF
+            selectedClass={selectedClass} 
+            selectedYear={selectedYear} 
+          />
 
           {!readOnly && (
             <Button onClick={handleAddNew} className="w-full sm:w-auto shadow-sm h-11 px-6 cursor-pointer">
@@ -241,7 +269,7 @@ export default function StudentTable({
             {search && (
               <button 
                 onClick={() => setSearch("")}
-                className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -250,9 +278,9 @@ export default function StudentTable({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border bg-card shadow-md overflow-hidden">
-        <div className="relative w-full overflow-auto">
+      {/* Table Section */}
+      <div className="rounded-xl border bg-card shadow-md flex flex-col overflow-hidden">
+        <div className="relative w-full overflow-x-auto">
           <table className="w-full caption-bottom text-sm">
             <thead className="bg-muted/50">
               <tr className="border-b transition-colors">
@@ -267,8 +295,8 @@ export default function StudentTable({
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredStudents.length > 0 ? (
-                filteredStudents.map((student) => {
+              {paginatedStudents.length > 0 ? (
+                paginatedStudents.map((student) => {
                   const displayEnrollment = getEnrollmentToDisplay(student, selectedYear);
 
                   return (
@@ -350,6 +378,40 @@ export default function StudentTable({
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20">
+            <div className="text-sm text-muted-foreground">
+              แสดงผล <span className="font-medium text-foreground">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> ถึง <span className="font-medium text-foreground">{Math.min(currentPage * ITEMS_PER_PAGE, filteredStudents.length)}</span> จาก <span className="font-medium text-foreground">{filteredStudents.length}</span> รายการ
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-9 px-3 cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                ก่อนหน้า
+              </Button>
+              <div className="text-sm font-medium px-4">
+                หน้า {currentPage} / {totalPages}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-9 px-3 cursor-pointer"
+              >
+                ถัดไป
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal ปรับปรุงสถานะแบบด่วน */}
@@ -360,7 +422,7 @@ export default function StudentTable({
               <h2 className="text-lg font-bold text-foreground">
                 เปลี่ยนสถานะนักเรียน
               </h2>
-              <Button variant="ghost" size="icon" onClick={() => setStatusModalStudent(null)} className="rounded-full hover:bg-background h-8 w-8">
+              <Button variant="ghost" size="icon" onClick={() => setStatusModalStudent(null)} className="rounded-full hover:bg-background h-8 w-8 cursor-pointer">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -374,7 +436,7 @@ export default function StudentTable({
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value)}
-                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer"
                 >
                   {STATUS_OPTIONS.map((statusOp) => (
                     <option key={statusOp} value={statusOp}>{statusOp}</option>
@@ -382,10 +444,10 @@ export default function StudentTable({
                 </select>
               </div>
               <div className="pt-4 flex gap-2 w-full">
-                <Button variant="outline" className="flex-1" onClick={() => setStatusModalStudent(null)} disabled={isUpdatingStatus}>
+                <Button variant="outline" className="flex-1 cursor-pointer" onClick={() => setStatusModalStudent(null)} disabled={isUpdatingStatus}>
                   ยกเลิก
                 </Button>
-                <Button className="flex-1" onClick={handleSaveStatus} disabled={isUpdatingStatus}>
+                <Button className="flex-1 cursor-pointer" onClick={handleSaveStatus} disabled={isUpdatingStatus}>
                   {isUpdatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   บันทึกสถานะ
                 </Button>
@@ -406,7 +468,7 @@ export default function StudentTable({
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">กรอกข้อมูลพื้นฐานและข้อมูลการเรียน</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={closeModal} className="rounded-full hover:bg-background">
+              <Button variant="ghost" size="icon" onClick={closeModal} className="rounded-full hover:bg-background cursor-pointer">
                 <X className="h-5 w-5" />
               </Button>
             </div>
