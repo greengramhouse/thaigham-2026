@@ -1,4 +1,4 @@
-import StudentTable from "@/app/(admin)/admin/student/components/Student-table";
+import StudentTable from "@/app/(admin)/admin/student/components/student-table";
 import { getStudents } from "@/app/actions/student";
 
 export default async function UserStudentTablePage() {
