@@ -125,7 +125,7 @@ const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear }: But
           stack: [
             {
               image: "logo",
-              fit: [50, 50],
+              fit: [80, 70],
               alignment: "center",
             },
             {
