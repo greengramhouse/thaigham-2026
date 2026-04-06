@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getDashboardStats } from "@/app/actions/dashboard";
-import DashboardStats from "./components/dashboard-stats";
+import DashboardStats from "@/components/dashboard/dashboard-stats";
 
 export default async function AdminDashboard() {
   // ดึงปีการศึกษาทั้งหมด
@@ -17,7 +17,7 @@ export default async function AdminDashboard() {
   const initialStats = statsRes?.success ? statsRes.data : null;
 
   return (
-    <div className="p-6 sm:p-8 space-y-8 animate-in fade-in duration-500">
+    <div className="p-6 sm:p-8">
       <DashboardStats
         academicYears={academicYears}
         initialStats={initialStats}

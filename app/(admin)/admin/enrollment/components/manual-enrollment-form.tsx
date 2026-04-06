@@ -20,9 +20,11 @@ import {
   UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+
+/**
+ * --- สำหรับนำไปใช้จริง (โปรดลบคอมเมนต์บรรทัดเหล่านี้ออกเมื่ออยู่ในโปรเจกต์ของคุณ) ---
+ */
 import { createManualEnrollment } from "@/app/actions/student";
-
-
 
 const CLASS_LEVELS = [
   "อ.1", "อ.2", "อ.3",
@@ -62,6 +64,13 @@ export default function ManualEnrollmentForm({
   const [studentNumber, setStudentNumber] = useState("");
   const [status, setStatus] = useState("กำลังศึกษา");
   const [isPending, setIsPending] = useState(false);
+
+  // === Helper ฟังก์ชันดึงข้อมูลชั้นเรียนล่าสุด ===
+  const getCurrentClassInfo = (student: any) => {
+    const enrollment = student?.enrollments?.[0]; // ข้อมูลเรียงล่าสุดมาจาก Database แล้ว
+    if (!enrollment) return "ไม่มีข้อมูลห้อง";
+    return `${enrollment.classLevel}${enrollment.classRoom ? `/${enrollment.classRoom}` : ""}`;
+  };
 
   // === Search Logic ===
   const searchResults = useMemo(() => {
@@ -106,10 +115,6 @@ export default function ManualEnrollmentForm({
       });
 
       if (res.success) {
-        const selectedYear = academicYears.find(
-          (y) => String(y.id) === yearId
-        );
-
         toast.success(
           `จัดห้องให้ ${selectedStudent.firstName} เข้าเรียนชั้น ${classLevel}/${classRoom} สำเร็จ`
         );
@@ -145,23 +150,29 @@ export default function ManualEnrollmentForm({
 
           {selectedStudent ? (
             <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50/50 p-4 dark:bg-blue-950/20 dark:border-blue-900">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 shrink-0">
                 <UserCheck className="h-5 w-5" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold">
                   {selectedStudent.prefixName || ""} {selectedStudent.firstName} {selectedStudent.lastName}
                 </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  รหัส: {selectedStudent.studentCode || "-"} | บัตรประชาชน: {selectedStudent.codeCitizen || "-"}
-                </p>
+                <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-2 gap-y-1 items-center">
+                  <span>รหัส: {selectedStudent.studentCode || "-"}</span>
+                  <span className="hidden sm:inline">|</span>
+                  <span>บัตรประชาชน: {selectedStudent.codeCitizen || "-"}</span>
+                  <span className="hidden sm:inline">|</span>
+                  <span className="bg-white dark:bg-black px-2 py-0.5 rounded-full border">
+                    ปัจจุบัน: <strong className="text-blue-600 dark:text-blue-400">{getCurrentClassInfo(selectedStudent)}</strong>
+                  </span>
+                </div>
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 onClick={handleClearStudent}
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -187,18 +198,20 @@ export default function ManualEnrollmentForm({
                       key={student.id}
                       type="button"
                       onMouseDown={() => handleSelectStudent(student)}
-                      className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors border-b last:border-0"
+                      className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-muted/50 transition-colors border-b last:border-0 cursor-pointer"
                     >
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-medium shrink-0">
                         {student.firstName?.charAt(0) || "-"}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">
                           {student.prefixName} {student.firstName} {student.lastName}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          รหัส: {student.studentCode}
-                        </p>
+                        <div className="text-xs text-muted-foreground mt-0.5 flex gap-2 items-center">
+                          <span>รหัส: {student.studentCode || "-"}</span>
+                          <span>|</span>
+                          <span>ปัจจุบัน: <strong className="text-blue-600 dark:text-blue-400">{getCurrentClassInfo(student)}</strong></span>
+                        </div>
                       </div>
                     </button>
                   ))}
@@ -318,10 +331,11 @@ export default function ManualEnrollmentForm({
               setStatus("กำลังศึกษา");
             }}
             disabled={isPending}
+            className="cursor-pointer"
           >
             ล้างข้อมูล
           </Button>
-          <Button type="submit" disabled={!canSubmit || isPending}>
+          <Button type="submit" disabled={!canSubmit || isPending} className="cursor-pointer">
             {isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (

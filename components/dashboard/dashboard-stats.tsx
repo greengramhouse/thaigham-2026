@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useMemo } from "react";
+import { useState, useTransition, useMemo } from "react";
 import {
   Users,
   GraduationCap,
@@ -31,9 +31,17 @@ interface DashboardStatsProps {
   academicYears: any[];
   initialStats: any;
   initialYearId: number | null;
+  title?: string;
+  description?: string;
 }
 
-export default function DashboardStats({ academicYears, initialStats, initialYearId }: DashboardStatsProps) {
+export default function DashboardStats({ 
+  academicYears, 
+  initialStats, 
+  initialYearId,
+  title = "ภาพรวมระบบ",
+  description = "ข้อมูลสถิตินักเรียน"
+}: DashboardStatsProps) {
   const [selectedYear, setSelectedYear] = useState<string>(initialYearId ? String(initialYearId) : "");
   const [stats, setStats] = useState<any>(initialStats);
   const [isPending, startTransition] = useTransition();
@@ -62,15 +70,15 @@ export default function DashboardStats({ academicYears, initialStats, initialYea
   }, [stats]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-in fade-in duration-500">
       {/* Page Header + Year Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            ภาพรวมระบบ
+            {title}
           </h2>
           <p className="text-zinc-500 dark:text-zinc-400 mt-1">
-            ข้อมูลสถิตินักเรียน {selectedYearLabel}
+            {description} {selectedYearLabel}
           </p>
         </div>
         <div className="flex items-center gap-3">
