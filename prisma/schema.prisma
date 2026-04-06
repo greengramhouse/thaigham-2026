@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          String?   @default("user")
+  banExpires    DateTime?
+  banReason     String?
+  banned        Boolean?  @default(false)
+  accounts      Account[]
+  sessions      Session[]
+
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  impersonatedBy String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ==========================================
+// ส่วนที่ 2: ระบบจัดการข้อมูลนักเรียนและการเรียนการสอน
+// ==========================================
+
+// ตารางข้อมูลหลักของนักเรียน (ข้อมูลส่วนตัวและครอบครัวที่ไม่ค่อยเปลี่ยนแปลง)
+model Student {
+  // ข้อมูลประจำตัว
+  id                  Int          @id @default(autoincrement()) @map("student_id")
+  studentCode         String?      @unique @map("student_code") @db.VarChar(50) 
+  codeCitizen         String?      @unique @map("code_citizen") @db.VarChar(50)
+  
+  // ข้อมูลส่วนตัว
+  prefixName          String?      @map("prefix_name") @db.VarChar(50)
+  firstName           String?      @map("first_name") @db.VarChar(50)
+  lastName            String?      @map("last_name") @db.VarChar(50)
+  gender              String?      @db.VarChar(50)
+  birthDate           DateTime?    @db.Date
+  religion            String?      @db.VarChar(50)
+  ethnicity           String?      @db.VarChar(50)
+  nationality         String?      @db.VarChar(50)
+
+  // ข้อมูลผู้ปกครองและครอบครัว
+  guardianFirstName   String?      @map("guardian_first_name") @db.VarChar(50)
+  guardianLastName    String?      @map("guardian_last_name") @db.VarChar(50)
+  guardianRelation    String?      @map("guardian_relation") @db.VarChar(50)
+  fatherFirstName     String?      @map("father_first_name") @db.VarChar(50)
+  fatherLastName      String?      @map("father_last_name") @db.VarChar(50)
+  motherFirstName     String?      @map("mother_first_name") @db.VarChar(50)
+  motherLastName      String?      @map("mother_last_name") @db.VarChar(50)
+
+  // ข้อมูลระบบ
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  // ความสัมพันธ์: นักเรียน 1 คน มีประวัติการเรียน (Enrollment) ได้หลายปี
+  enrollments         Enrollment[]
+
+  @@map("student")
+}
+
+// ตารางจัดการปีการศึกษา
+model AcademicYear {
+  id          Int          @id @default(autoincrement())
+  year        String       @unique @db.VarChar(4) // เช่น "2566", "2567"
+  isActive    Boolean      @default(false) @map("is_active") // ระบุว่าเป็นปีการศึกษาปัจจุบันหรือไม่
+
+  // ความสัมพันธ์: 1 ปีการศึกษามีประวัติการเรียนของนักเรียนได้หลายคน
+  enrollments Enrollment[]
+
+  @@map("academic_year")
+}
+
+// ตารางประวัติการลงทะเบียนเรียนรายปี (การเชื่อมโยงนักเรียนเข้ากับชั้นเรียนในปีนั้นๆ)
+model Enrollment {
+  id              Int          @id @default(autoincrement())
+  studentId       Int          @map("student_id")
+  academicYearId  Int          @map("academic_year_id")
+
+  // ข้อมูลการเรียนที่เปลี่ยนไปในแต่ละปี
+  classLevel      String?      @map("class_level") @db.VarChar(50) // ชั้นปี เช่น "ม.1", "ป.6"
+  classRoom       Int?         @map("class_room")                  // ห้องเรียน เช่น 1, 2
+  studentNumber   Int?         @map("student_number")              // เลขที่ประจำชั้น
+  
+  status          String?      @db.VarChar(50) // สถานะในปีนั้น เช่น "กำลังศึกษา", "ย้ายออก"
+  note            String?      @db.VarChar(255)
+
+  // ข้อมูลระบบ
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  // การเชื่อมโยงไปยังตารางหลัก (Relation)
+  student         Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYear    AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Restrict)
+
+  // กฎข้อบังคับ: นักเรียน 1 คน จะต้องมีข้อมูลแค่ 1 เรคคอร์ดใน 1 ปีการศึกษา 
+  @@unique([studentId, academicYearId])
+  
+  @@map("enrollment")
+}
+
