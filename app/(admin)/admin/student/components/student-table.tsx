@@ -27,7 +27,7 @@ const STATUS_OPTIONS = [
   "จบการศึกษา"
 ];
 
-const ITEMS_PER_PAGE = 20; // กำหนดจำนวนนักเรียนต่อ 1 หน้า
+const ITEMS_PER_PAGE = 5; // กำหนดจำนวนนักเรียนต่อ 1 หน้า
 
 export default function StudentTable({ 
   initialStudents = [], 
