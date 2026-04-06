@@ -4,9 +4,9 @@ import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Edit2, Plus, Trash2, Search, X, Filter, 
-  Users, UserCog, Loader2, AlertTriangle, 
+import {
+  Edit2, Plus, Trash2, Search, X, Filter,
+  Users, UserCog, Loader2, AlertTriangle,
   ChevronLeft, ChevronRight, FileText
 } from "lucide-react";
 
@@ -15,7 +15,7 @@ import {
  */
 import { deleteStudent, updateStudentStatus } from "@/app/actions/student";
 import ButtonPdfStudent from "./Button-pdf-student";
-import StudentForm from "./Student-form";
+import StudentForm from "./student-form";
 
 const STATUS_OPTIONS = [
   "กำลังศึกษา",
@@ -27,14 +27,14 @@ const STATUS_OPTIONS = [
 
 const ITEMS_PER_PAGE = 20; // กำหนดจำนวนนักเรียนต่อ 1 หน้า
 
-export default function StudentTable({ 
-  initialStudents = [], 
-  academicYears = [], 
-  readOnly = false 
-}: { 
-  initialStudents?: any[], 
-  academicYears?: any[], 
-  readOnly?: boolean 
+export default function StudentTable({
+  initialStudents = [],
+  academicYears = [],
+  readOnly = false
+}: {
+  initialStudents?: any[],
+  academicYears?: any[],
+  readOnly?: boolean
 }) {
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -70,7 +70,7 @@ export default function StudentTable({
   // ฟังก์ชันช่วยดึงข้อมูล Enrollment ให้ตรงกับปีที่เลือก
   const getEnrollmentToDisplay = (student: any, targetYear: string) => {
     if (!student.enrollments || student.enrollments.length === 0) return null;
-    if (targetYear === "all") return student.enrollments[0]; 
+    if (targetYear === "all") return student.enrollments[0];
     return student.enrollments.find((e: any) => String(e.academicYearId) === targetYear) || null;
   };
 
@@ -94,8 +94,8 @@ export default function StudentTable({
     return initialStudents.filter((student) => {
       // 1. กรองตามปีการศึกษา
       if (selectedYear !== "all") {
-         const hasEnrollmentInYear = student.enrollments?.some((e: any) => String(e.academicYearId) === selectedYear);
-         if (!hasEnrollmentInYear) return false;
+        const hasEnrollmentInYear = student.enrollments?.some((e: any) => String(e.academicYearId) === selectedYear);
+        if (!hasEnrollmentInYear) return false;
       }
 
       const displayEnrollment = getEnrollmentToDisplay(student, selectedYear);
@@ -167,7 +167,7 @@ export default function StudentTable({
 
   const handleSaveStatus = async () => {
     if (!statusModalStudent) return;
-    
+
     const enrollment = getEnrollmentToDisplay(statusModalStudent, selectedYear);
     if (!enrollment) {
       toast.error("ไม่พบข้อมูลประวัติการเรียนในปีการศึกษานี้");
@@ -208,18 +208,18 @@ export default function StudentTable({
             </div>
           </div>
           <div className="flex gap-2">
-          
-          <ButtonPdfStudent 
-            filteredStudents={filteredStudents} // ส่งข้อมูลทั้งหมดที่กรองแล้ว (ไม่โดนตัด pagination) ไปทำ PDF
-            selectedClass={selectedClass} 
-            selectedYear={selectedYear} 
-          />
 
-          {!readOnly && (
-            <Button onClick={handleAddNew} className="w-full sm:w-auto shadow-sm h-11 px-6 cursor-pointer">
-              <Plus className="mr-2 h-5 w-5" /> เพิ่มนักเรียนใหม่
-            </Button>
-          )}
+            <ButtonPdfStudent
+              filteredStudents={filteredStudents} // ส่งข้อมูลทั้งหมดที่กรองแล้ว (ไม่โดนตัด pagination) ไปทำ PDF
+              selectedClass={selectedClass}
+              selectedYear={selectedYear}
+            />
+
+            {!readOnly && (
+              <Button onClick={handleAddNew} className="w-full sm:w-auto shadow-sm h-11 px-6 cursor-pointer">
+                <Plus className="mr-2 h-5 w-5" /> เพิ่มนักเรียนใหม่
+              </Button>
+            )}
           </div>
         </div>
 
@@ -267,7 +267,7 @@ export default function StudentTable({
               onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
-              <button 
+              <button
                 onClick={() => setSearch("")}
                 className="absolute right-3 top-3.5 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
               >
@@ -316,20 +316,18 @@ export default function StudentTable({
                       </td>
                       <td className="p-4 align-middle font-medium">{displayEnrollment?.studentNumber || "-"}</td>
                       <td className="p-4 align-middle">
-                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold border-2 ${
-                          displayEnrollment?.status === 'กำลังศึกษา' ? 'bg-green-50 text-green-700 border-green-200' :
-                          displayEnrollment?.status === 'ย้ายออก' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
-                          displayEnrollment?.status === 'จบการศึกษา' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                          displayEnrollment?.status === 'พ้นสภาพ' || displayEnrollment?.status === 'ลาออก' ? 'bg-red-50 text-red-700 border-red-200' :
-                          'bg-gray-50 text-gray-700 border-gray-200'
-                        }`}>
-                          <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                            displayEnrollment?.status === 'กำลังศึกษา' ? 'bg-green-600' :
-                            displayEnrollment?.status === 'ย้ายออก' ? 'bg-yellow-600' :
-                            displayEnrollment?.status === 'จบการศึกษา' ? 'bg-blue-600' :
-                            displayEnrollment?.status === 'พ้นสภาพ' || displayEnrollment?.status === 'ลาออก' ? 'bg-red-600' :
-                            'bg-gray-600'
-                          }`} />
+                        <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold border-2 ${displayEnrollment?.status === 'กำลังศึกษา' ? 'bg-green-50 text-green-700 border-green-200' :
+                            displayEnrollment?.status === 'ย้ายออก' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                              displayEnrollment?.status === 'จบการศึกษา' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                displayEnrollment?.status === 'พ้นสภาพ' || displayEnrollment?.status === 'ลาออก' ? 'bg-red-50 text-red-700 border-red-200' :
+                                  'bg-gray-50 text-gray-700 border-gray-200'
+                          }`}>
+                          <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${displayEnrollment?.status === 'กำลังศึกษา' ? 'bg-green-600' :
+                              displayEnrollment?.status === 'ย้ายออก' ? 'bg-yellow-600' :
+                                displayEnrollment?.status === 'จบการศึกษา' ? 'bg-blue-600' :
+                                  displayEnrollment?.status === 'พ้นสภาพ' || displayEnrollment?.status === 'ลาออก' ? 'bg-red-600' :
+                                    'bg-gray-600'
+                            }`} />
                           {displayEnrollment?.status || "ไม่มีข้อมูล"}
                         </span>
                       </td>
@@ -337,23 +335,23 @@ export default function StudentTable({
                         <td className="p-4 align-middle text-right">
                           <div className="flex justify-end gap-2">
                             {/* ปุ่มเปลี่ยนสถานะแบบด่วน */}
-                            <Button 
-                              variant="outline" 
-                              size="icon" 
+                            <Button
+                              variant="outline"
+                              size="icon"
                               onClick={() => {
                                 setStatusModalStudent(student);
                                 setNewStatus(displayEnrollment?.status || "กำลังศึกษา");
-                              }} 
+                              }}
                               className="h-9 w-9 bg-orange-200 text-orange-600 hover:text-orange-700 hover:bg-orange-50 cursor-pointer border-orange-100"
                               title="เปลี่ยนสถานะการเรียน"
                             >
                               <UserCog className="h-4 w-4" />
                             </Button>
-                            
+
                             <Button variant="outline" size="icon" onClick={() => handleEdit(student)} className="h-9 w-9 text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-100 cursor-pointer" title="แก้ไขข้อมูล">
                               <Edit2 className="h-4 w-4" />
                             </Button>
-                            
+
                             <Button variant="outline" size="icon" onClick={() => handleDelete(student)} className="h-9 w-9 text-destructive hover:text-destructive hover:bg-red-50 border-red-100 cursor-pointer" title="ลบข้อมูล">
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -378,7 +376,7 @@ export default function StudentTable({
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination Controls */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/20">
@@ -474,10 +472,10 @@ export default function StudentTable({
             </div>
             <div className="p-6 overflow-y-auto">
               <StudentForm
-                initialData={editingStudent} 
+                initialData={editingStudent}
                 academicYears={academicYears}
-                onSuccess={closeModal} 
-                onCancel={closeModal} 
+                onSuccess={closeModal}
+                onCancel={closeModal}
               />
             </div>
           </div>
