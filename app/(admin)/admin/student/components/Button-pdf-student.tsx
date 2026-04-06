@@ -12,14 +12,14 @@ import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import pdfFontsConfig from "@/lib/pdffont/fontconfig";
 
-
 interface ButtonPdfStudentProps {
   filteredStudents: any[];
   selectedClass?: string;
   selectedYear?: string;
+  selectedStatus?: string; // ✅ เพิ่มการรับค่า selectedStatus ตรงนี้
 }
 
-const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear }: ButtonPdfStudentProps) => {
+const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear, selectedStatus }: ButtonPdfStudentProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [title2, setTitle2] = useState("");
@@ -37,8 +37,13 @@ const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear }: But
     return student.enrollments.find((e: any) => String(e.academicYearId) === targetYear) || null;
   };
 
-  // กรองเฉพาะนักเรียนที่ "กำลังศึกษา"
+  // ✅ กรองนักเรียนที่จะนำไปสร้าง PDF ให้ฉลาดขึ้น
   const studentCurrent = filteredStudents.filter((student: any) => {
+    // ถ้าผู้ใช้จงใจกรองสถานะเฉพาะเจาะจง (เช่น ย้ายออก, พ้นสภาพ) ก็ให้พิมพ์ตามนั้นเลย
+    if (selectedStatus && selectedStatus !== "all") {
+      return true;
+    }
+    // แต่ถ้าเป็น "ทุกสถานะ" ค่าเริ่มต้นควรจะพิมพ์แค่เด็กที่ "กำลังศึกษา" เพื่อไม่ให้ใบเช็คชื่อรก
     const enrollment = getEnrollment(student, selectedYear || "all");
     return enrollment?.status === "กำลังศึกษา";
   });
@@ -110,6 +115,7 @@ const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear }: But
     if (showClassInfo) topMargin += 20;
     if (title) topMargin += 20;
     if (title2) topMargin += 20;
+    if (selectedStatus && selectedStatus !== "all") topMargin += 20; // เผื่อที่ให้ข้อความสถานะบนหัวกระดาษ
 
     // คำนวณชื่อชั้นเรียนและห้อง
     const displayLevel = !selectedClass || selectedClass === "all" ? "ทุกระดับชั้น" : selectedClass.split(" / ")[0];
@@ -125,7 +131,7 @@ const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear }: But
           stack: [
             {
               image: "logo",
-              fit: [80, 70],
+              fit: [80, 80],
               alignment: "center",
             },
             {
@@ -139,9 +145,19 @@ const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear }: But
                   text: convertToThai(`ใบรายชื่อนักเรียน : ${displayLevel} / ${displayRoom}`),
                   style: "header",
                   alignment: "center",
-                  margin: [0, 5, 0, 5],
+                  margin: [0, 5, 0, 0], // ลดขอบล่างลงนิดนึง
                 }
               : null,
+            // ✅ เพิ่มวงเล็บสถานะให้บน PDF ทันที ถ้าเลือกสถานะอื่นๆ เช่น (สถานะ: ย้ายออก)
+            selectedStatus && selectedStatus !== "all"
+              ? {
+                  text: convertToThai(`(สถานะ: ${selectedStatus})`),
+                  style: "header",
+                  alignment: "center",
+                  color: "gray",
+                  margin: [0, 0, 0, 5],
+                }
+              : { text: "", margin: [0, 0, 0, 5] },
             title ? { text: convertToThai(title), style: "header", alignment: "center" } : null,
             title2 ? { text: convertToThai(title2), style: "header", alignment: "center" } : null,
           ].filter(Boolean),
@@ -174,7 +190,6 @@ const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear }: But
 
     try {
       // --- ปลดคอมเมนต์เพื่อใช้งาน pdfmake ในโปรเจกต์จริง ---
-      
       // @ts-ignore
       pdfMake.vfs = pdfFonts.vfs;
       // @ts-ignore

@@ -220,25 +220,48 @@ export async function promoteStudentsGroup(data: {
   }
 }
 
-export async function updateStudentStatus(studentId: number, academicYearId: number, status: string) {
+export async function updateStudentStatus(
+  studentId: number, 
+  academicYearId: number, 
+  status: string,
+  transferOutDate?: Date | null,    // รับเป็น Date object
+  transferToSchool?: string | null
+) {
   try {
-    const updatedEnrollment = await prisma.enrollment.update({
+    await prisma.enrollment.updateMany({
       where: {
-        studentId_academicYearId: {
-          studentId: studentId,
-          academicYearId: academicYearId,
-        }
+        studentId: studentId,
+        academicYearId: academicYearId,
       },
       data: {
-        status: status
+        status: status,
+        transferOutDate: status === "ย้ายออก" ? transferOutDate : null,
+        transferToSchool: status === "ย้ายออก" ? transferToSchool : null,
       }
     });
 
     revalidatePath("/admin/student/table");
     revalidatePath("/admin/enrollment");
-    return { success: true, data: updatedEnrollment };
+    return { success: true };
   } catch (error) {
     console.error("Error updating student status:", error);
     return { success: false, error: "ไม่สามารถอัปเดตสถานะได้" };
+  }
+}
+
+// ฟังก์ชันสำหรับลบประวัติการเรียน (ใช้ในหน้า History)
+export async function deleteEnrollment(enrollmentId: number) {
+  try {
+    await prisma.enrollment.delete({
+      where: { id: enrollmentId },
+    });
+    
+    // อัปเดตข้อมูลหน้าเว็บใหม่
+    revalidatePath("/admin/student/table");
+    revalidatePath("/admin/enrollment");
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting enrollment:", error);
+    return { success: false, error: "ไม่สามารถลบประวัติการเรียนได้" };
   }
 }

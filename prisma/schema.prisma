@@ -139,9 +139,13 @@ model Enrollment {
   status          String?      @db.VarChar(50) // สถานะในปีนั้น เช่น "กำลังศึกษา", "ย้ายออก"
   note            String?      @db.VarChar(255)
 
+  transferOutDate   DateTime? // วันที่ย้ายออก (ใส่ ? เพื่อให้เว้นว่างได้)
+  transferToSchool  String?   // โรงเรียนที่รับย้าย (ใส่ ? เพื่อให้เว้นว่างได้)
+
   // ข้อมูลระบบ
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
+
 
   // การเชื่อมโยงไปยังตารางหลัก (Relation)
   student         Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)

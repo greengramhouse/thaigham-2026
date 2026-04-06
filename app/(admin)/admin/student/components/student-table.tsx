@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { 
   Edit2, Plus, Trash2, Search, X, Filter, 
   Users, UserCog, Loader2, AlertTriangle, 
@@ -13,7 +14,7 @@ import {
 /**
  * --- สำหรับนำไปใช้จริง (โปรดลบคอมเมนต์บรรทัดเหล่านี้ออกเมื่ออยู่ในโปรเจกต์ของคุณ) ---
  */
-import { deleteStudent, updateStudentStatus } from "@/app/actions/student";
+import { deleteStudent, updateStudentStatus, deleteEnrollment } from "@/app/actions/student";
 import StudentForm from "./student-form";
 import ButtonPdfStudent from "./Button-pdf-student";
 
@@ -41,9 +42,11 @@ export default function StudentTable({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<any>(null);
 
-  // State สำหรับแก้ไขสถานะแบบด่วน
+  // === State สำหรับแก้ไขสถานะแบบด่วน ===
   const [statusModalStudent, setStatusModalStudent] = useState<any>(null);
   const [newStatus, setNewStatus] = useState("");
+  const [transferOutDate, setTransferOutDate] = useState("");
+  const [transferToSchool, setTransferToSchool] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   // === State สำหรับ Modal ประวัติการเรียน ===
@@ -57,6 +60,9 @@ export default function StudentTable({
 
   // State สำหรับเก็บระดับชั้น/ห้อง ที่เลือก
   const [selectedClass, setSelectedClass] = useState<string>("all");
+  
+  // === State ใหม่: สำหรับกรองสถานะ ===
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
   // State สำหรับ Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -69,7 +75,7 @@ export default function StudentTable({
   // รีเซ็ตหน้ากลับไปหน้าที่ 1 เสมอเมื่อมีการค้นหาหรือเปลี่ยนฟิลเตอร์
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, selectedYear, selectedClass]);
+  }, [search, selectedYear, selectedClass, selectedStatus]); // เพิ่ม selectedStatus
 
   // ฟังก์ชันช่วยดึงข้อมูล Enrollment ให้ตรงกับปีที่เลือก
   const getEnrollmentToDisplay = (student: any, targetYear: string) => {
@@ -93,7 +99,7 @@ export default function StudentTable({
     return Array.from(classes).sort((a, b) => a.localeCompare(b, 'th'));
   }, [initialStudents, selectedYear]);
 
-  // กรองนักเรียนตาม "คำค้นหา", "ปีการศึกษา" และ "ชั้นเรียน" (ข้อมูลทั้งหมดหลังกรอง)
+  // กรองนักเรียนตาม "คำค้นหา", "ปีการศึกษา", "ชั้นเรียน" และ "สถานะ" (ข้อมูลทั้งหมดหลังกรอง)
   const filteredStudents = useMemo(() => {
     return initialStudents.filter((student) => {
       // 1. กรองตามปีการศึกษา
@@ -113,7 +119,13 @@ export default function StudentTable({
         if (classRoomStr !== selectedClass) return false;
       }
 
-      // 3. กรองตามคำค้นหา (ค้นจากชื่อ, นามสกุล, รหัส)
+      // 3. กรองตามสถานะ
+      if (selectedStatus !== "all") {
+        if (!displayEnrollment) return false; // ถ้าไม่มีประวัติ ให้ถือว่าไม่ตรงสถานะ
+        if (displayEnrollment.status !== selectedStatus) return false;
+      }
+
+      // 4. กรองตามคำค้นหา (ค้นจากชื่อ, นามสกุล, รหัส)
       const term = search.toLowerCase();
       return (
         student.firstName?.toLowerCase().includes(term) ||
@@ -122,7 +134,7 @@ export default function StudentTable({
         student.codeCitizen?.includes(term)
       );
     });
-  }, [initialStudents, search, selectedYear, selectedClass]);
+  }, [initialStudents, search, selectedYear, selectedClass, selectedStatus]);
 
   // คำนวณข้อมูลสำหรับการแบ่งหน้า (Pagination)
   const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
@@ -133,7 +145,7 @@ export default function StudentTable({
 
   const handleDelete = (student: any) => {
     toast("ยืนยันการลบข้อมูลนักเรียน", {
-      description: `คุณกำลังจะลบข้อมูลของ ${student.firstName} ${student.lastName} (ประวัติการเรียนจะถูกลบไปด้วย)`,
+      description: `คุณกำลังจะลบข้อมูลของ ${student.firstName} ${student.lastName} (ประวัติการเรียนทั้งหมดจะถูกลบไปด้วย)`,
       action: {
         label: "ยืนยันลบทันที",
         onClick: async () => {
@@ -180,10 +192,23 @@ export default function StudentTable({
 
     setIsUpdatingStatus(true);
     try {
-      const res = await updateStudentStatus(statusModalStudent.id, enrollment.academicYearId, newStatus);
+      // เปลี่ยนกลับมาสร้างเป็น Date Object เพื่อให้ Type ตรงกับ Server Action
+      const formattedDate = newStatus === "ย้ายออก" && transferOutDate ? new Date(transferOutDate) : null;
+      const formattedSchool = newStatus === "ย้ายออก" ? transferToSchool : null;
+
+      const res = await updateStudentStatus(
+        statusModalStudent.id, 
+        enrollment.academicYearId, 
+        newStatus,
+        formattedDate,
+        formattedSchool
+      );
+      
       if (res.success) {
         toast.success("อัปเดตสถานะสำเร็จ");
         setStatusModalStudent(null);
+        setTransferOutDate("");
+        setTransferToSchool("");
       } else {
         toast.error("ไม่สามารถอัปเดตสถานะได้");
       }
@@ -192,6 +217,40 @@ export default function StudentTable({
     } finally {
       setIsUpdatingStatus(false);
     }
+  };
+
+  const closeStatusModal = () => {
+    setStatusModalStudent(null);
+    setTransferOutDate("");
+    setTransferToSchool("");
+  }
+
+  // === ฟังก์ชันใหม่: สำหรับลบเฉพาะประวัติปีนั้นๆ ===
+  const handleDeleteEnrollment = (enrollmentId: number, yearName: string) => {
+    toast("ยืนยันลบประวัติของปีนี้", {
+      description: `ต้องการลบข้อมูลการเข้าเรียนของปีการศึกษา ${yearName} ใช่หรือไม่? (ข้อมูลนักเรียนจะยังอยู่)`,
+      action: {
+        label: "ยืนยันลบ",
+        onClick: async () => {
+          const res = await deleteEnrollment(enrollmentId);
+          if (res.success) {
+            toast.success("ลบประวัติการเรียนสำเร็จ");
+            // อัปเดต State หน้าต่าง Modal ให้รายการนั้นหายไปทันทีโดยไม่ต้องโหลดใหม่
+            setHistoryModalStudent((prev: any) => ({
+              ...prev,
+              enrollments: prev.enrollments.filter((e: any) => e.id !== enrollmentId)
+            }));
+          } else {
+            toast.error("ไม่สามารถลบประวัติได้");
+          }
+        },
+      },
+      cancel: {
+        label: "ยกเลิก",
+        onClick: () => console.log("Cancel delete enrollment"),
+      },
+      icon: <AlertTriangle className="h-5 w-5 text-red-500" />,
+    });
   };
 
   return (
@@ -216,7 +275,8 @@ export default function StudentTable({
           <ButtonPdfStudent 
             filteredStudents={filteredStudents} // ส่งข้อมูลทั้งหมดที่กรองแล้ว (ไม่โดนตัด pagination) ไปทำ PDF
             selectedClass={selectedClass} 
-            selectedYear={selectedYear} 
+            selectedYear={selectedYear}
+            selectedStatus={selectedStatus} // ส่งให้เผื่อไปแสดงบนหัวกระดาษ PDF
           />
 
           {!readOnly && (
@@ -227,16 +287,16 @@ export default function StudentTable({
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col md:flex-row flex-wrap gap-3">
           {/* Dropdown เลือกปีการศึกษา */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-48 md:w-56">
             <Filter className="absolute left-3 top-3 h-4 w-4 text-blue-500" />
             <select
               className="flex h-11 w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2 text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer hover:bg-muted/50 appearance-none"
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
             >
-              <option value="all">ทุกปีการศึกษา (ล่าสุด)</option>
+              <option value="all">ทุกปีการศึกษา</option>
               {academicYears.map((year) => (
                 <option key={year.id} value={year.id}>
                   ปีการศึกษา {year.year} {year.isActive ? " (ปัจจุบัน)" : ""}
@@ -246,27 +306,42 @@ export default function StudentTable({
           </div>
 
           {/* Dropdown เลือกระดับชั้น/ห้อง */}
-          <div className="relative w-full sm:w-48">
+          <div className="relative w-full sm:w-40 md:w-48">
             <Filter className="absolute left-3 top-3 h-4 w-4 text-green-500" />
             <select
               className="flex h-11 w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2 text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer hover:bg-muted/50 appearance-none"
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
             >
-              <option value="all">ทุกชั้นเรียน / ห้อง</option>
+              <option value="all">ทุกห้อง</option>
               {availableClasses.map((cls) => (
                 <option key={cls} value={cls}>ชั้น {cls}</option>
               ))}
             </select>
           </div>
 
+          {/* Dropdown เลือกสถานะ (เพิ่มใหม่) */}
+          <div className="relative w-full sm:w-40 md:w-48">
+            <Filter className="absolute left-3 top-3 h-4 w-4 text-orange-500" />
+            <select
+              className="flex h-11 w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2 text-sm shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer hover:bg-muted/50 appearance-none"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+            >
+              <option value="all">ทุกสถานะ</option>
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+          </div>
+
           {/* ช่องค้นหาชื่อนักเรียน */}
-          <div className="relative flex-1 max-w-lg">
+          <div className="relative flex-1 min-w-[200px] max-w-full">
             <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
               placeholder="ค้นหาชื่อ, นามสกุล, รหัส..."
-              className="pl-10 h-11 rounded-lg"
+              className="pl-10 h-11 rounded-lg w-full"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -293,7 +368,9 @@ export default function StudentTable({
                 <th className="h-14 px-4 text-left align-middle font-bold text-muted-foreground">ระดับชั้น/ห้อง</th>
                 <th className="h-14 px-4 text-left align-middle font-bold text-muted-foreground">เลขที่</th>
                 <th className="h-14 px-4 text-left align-middle font-bold text-muted-foreground">สถานะ</th>
-                <th className="h-14 px-4 text-right align-middle font-bold text-muted-foreground">จัดการ</th>
+                {!readOnly && (
+                  <th className="h-14 px-4 text-right align-middle font-bold text-muted-foreground">จัดการ</th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -357,6 +434,13 @@ export default function StudentTable({
                                 onClick={() => {
                                   setStatusModalStudent(student);
                                   setNewStatus(displayEnrollment?.status || "กำลังศึกษา");
+                                  // ถ้าเคยย้ายออกแล้ว ให้ดึงข้อมูลมาแสดงด้วย
+                                  if (displayEnrollment?.transferOutDate) {
+                                    setTransferOutDate(new Date(displayEnrollment.transferOutDate).toISOString().split('T')[0]);
+                                  } else {
+                                    setTransferOutDate("");
+                                  }
+                                  setTransferToSchool(displayEnrollment?.transferToSchool || "");
                                 }} 
                                 className="h-9 w-9 bg-orange-50 text-orange-600 hover:text-orange-700 hover:bg-orange-100 cursor-pointer border-orange-200"
                                 title="เปลี่ยนสถานะการเรียน"
@@ -463,21 +547,44 @@ export default function StudentTable({
                           <div className="flex items-center justify-center w-5 h-5 rounded-full border-2 border-white bg-indigo-500 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 ml-[3px] md:ml-0"></div>
                           <div className="w-[calc(100%-2.5rem)] md:w-[calc(50%-1.5rem)] bg-card border p-3 rounded-lg shadow-sm">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="font-bold text-indigo-600 text-sm">ปีการศึกษา {yearObj?.year || "ไม่ทราบปี"}</span>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                enrollment.status === 'กำลังศึกษา' ? 'bg-green-100 text-green-700' :
-                                enrollment.status === 'จบการศึกษา' ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-700'
-                              }`}>
-                                {enrollment.status || "ไม่มีสถานะ"}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-indigo-600 text-sm">ปีการศึกษา {yearObj?.year || "ไม่ทราบปี"}</span>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  enrollment.status === 'กำลังศึกษา' ? 'bg-green-100 text-green-700' :
+                                  enrollment.status === 'ย้ายออก' ? 'bg-orange-100 text-orange-700' :
+                                  enrollment.status === 'จบการศึกษา' ? 'bg-blue-100 text-blue-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {enrollment.status || "ไม่มีสถานะ"}
+                                </span>
+                              </div>
+                              
+                              {/* ปุ่มลบประวัติของปีนี้ (แสดงเมื่อไม่ใช่โหมด readOnly) */}
+                              {!readOnly && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => handleDeleteEnrollment(enrollment.id, yearObj?.year || "ไม่ทราบปี")}
+                                  className="h-6 w-6 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full"
+                                  title="ลบข้อมูลปีการศึกษานี้"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
                             </div>
                             <div className="text-sm text-foreground">
                               ชั้น {enrollment.classLevel} {enrollment.classRoom ? `/ ${enrollment.classRoom}` : ""}
                             </div>
-                            <div className="text-xs text-muted-foreground mt-1">
-                              เลขที่: {enrollment.studentNumber || "-"}
+                            <div className="text-xs text-muted-foreground mt-1 flex justify-between">
+                              <span>เลขที่: {enrollment.studentNumber || "-"}</span>
                             </div>
+                            {/* แสดงข้อมูลเพิ่มเติมถ้าย้ายออก */}
+                            {enrollment.status === 'ย้ายออก' && (enrollment.transferOutDate || enrollment.transferToSchool) && (
+                              <div className="mt-2 pt-2 border-t text-[11px] text-orange-600 dark:text-orange-400">
+                                {enrollment.transferOutDate && <div>ย้ายเมื่อ: {new Date(enrollment.transferOutDate).toLocaleDateString('th-TH')}</div>}
+                                {enrollment.transferToSchool && <div>ไปยัง: {enrollment.transferToSchool}</div>}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -506,7 +613,7 @@ export default function StudentTable({
               <h2 className="text-lg font-bold text-foreground">
                 เปลี่ยนสถานะนักเรียน
               </h2>
-              <Button variant="ghost" size="icon" onClick={() => setStatusModalStudent(null)} className="rounded-full hover:bg-background h-8 w-8 cursor-pointer">
+              <Button variant="ghost" size="icon" onClick={closeStatusModal} className="rounded-full hover:bg-background h-8 w-8 cursor-pointer">
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -515,8 +622,9 @@ export default function StudentTable({
                 <p className="text-sm font-medium">ชื่อ-นามสกุล:</p>
                 <p className="text-muted-foreground">{statusModalStudent.prefixName} {statusModalStudent.firstName} {statusModalStudent.lastName}</p>
               </div>
+              
               <div className="space-y-2">
-                <label className="text-sm font-medium">ระบุสถานะใหม่:</label>
+                <Label className="text-sm font-medium">ระบุสถานะใหม่:</Label>
                 <select
                   value={newStatus}
                   onChange={(e) => setNewStatus(e.target.value)}
@@ -527,8 +635,38 @@ export default function StudentTable({
                   ))}
                 </select>
               </div>
+
+              {/* ส่วนกรอกข้อมูลย้ายออก (แสดงเฉพาะตอนเลือกสถานะ ย้ายออก) */}
+              {newStatus === "ย้ายออก" && (
+                <div className="grid grid-cols-1 gap-3 p-3 mt-3 border border-orange-200 bg-orange-50/50 rounded-lg dark:bg-orange-950/20 dark:border-orange-900 animate-in zoom-in-95 duration-200">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-orange-700 dark:text-orange-500">
+                      วันที่ย้ายออก
+                    </Label>
+                    <Input
+                      type="date"
+                      value={transferOutDate}
+                      onChange={(e) => setTransferOutDate(e.target.value)}
+                      className="border-orange-200 focus-visible:ring-orange-500 h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-medium text-orange-700 dark:text-orange-500">
+                      โรงเรียนที่รับย้าย
+                    </Label>
+                    <Input
+                      type="text"
+                      value={transferToSchool}
+                      onChange={(e) => setTransferToSchool(e.target.value)}
+                      placeholder="เช่น โรงเรียนตัวอย่างวิทยา"
+                      className="border-orange-200 focus-visible:ring-orange-500 h-9"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="pt-4 flex gap-2 w-full">
-                <Button variant="outline" className="flex-1 cursor-pointer" onClick={() => setStatusModalStudent(null)} disabled={isUpdatingStatus}>
+                <Button variant="outline" className="flex-1 cursor-pointer" onClick={closeStatusModal} disabled={isUpdatingStatus}>
                   ยกเลิก
                 </Button>
                 <Button className="flex-1 cursor-pointer" onClick={handleSaveStatus} disabled={isUpdatingStatus}>

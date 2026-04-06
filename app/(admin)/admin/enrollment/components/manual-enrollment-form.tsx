@@ -26,6 +26,8 @@ import { toast } from "sonner";
  */
 import { createManualEnrollment } from "@/app/actions/student";
 
+
+
 const CLASS_LEVELS = [
   "อ.1", "อ.2", "อ.3",
   "ป.1", "ป.2", "ป.3", "ป.4", "ป.5", "ป.6",
@@ -64,6 +66,10 @@ export default function ManualEnrollmentForm({
   const [studentNumber, setStudentNumber] = useState("");
   const [status, setStatus] = useState("กำลังศึกษา");
   const [isPending, setIsPending] = useState(false);
+  
+  // === State ใหม่สำหรับเก็บข้อมูลกรณีย้ายออก ===
+  const [transferOutDate, setTransferOutDate] = useState("");
+  const [transferToSchool, setTransferToSchool] = useState("");
 
   // === Helper ฟังก์ชันดึงข้อมูลชั้นเรียนล่าสุด ===
   const getCurrentClassInfo = (student: any) => {
@@ -96,6 +102,8 @@ export default function ManualEnrollmentForm({
   const handleClearStudent = () => {
     setSelectedStudent(null);
     setSearchTerm("");
+    setTransferOutDate("");
+    setTransferToSchool("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,15 +112,21 @@ export default function ManualEnrollmentForm({
 
     setIsPending(true);
     try {
-      // เรียกใช้ Server Action เพื่อบันทึกลงฐานข้อมูล
-      const res = await createManualEnrollment({
+      // เตรียมข้อมูลที่จะส่งไป Server Action
+      const payload = {
         studentId: selectedStudent.id,
         academicYearId: parseInt(yearId),
         classLevel: classLevel,
         classRoom: parseInt(classRoom),
         studentNumber: studentNumber ? parseInt(studentNumber) : null,
         status: status,
-      });
+        // เพิ่มข้อมูลส่วนการย้ายออก (ส่งไปเฉพาะตอนที่สถานะเป็น "ย้ายออก")
+        transferOutDate: status === "ย้ายออก" && transferOutDate ? new Date(transferOutDate) : null,
+        transferToSchool: status === "ย้ายออก" ? transferToSchool : null,
+      };
+
+      // เรียกใช้ Server Action เพื่อบันทึกลงฐานข้อมูล
+      const res = await createManualEnrollment(payload);
 
       if (res.success) {
         toast.success(
@@ -125,6 +139,8 @@ export default function ManualEnrollmentForm({
         setClassRoom("");
         setStudentNumber("");
         setStatus("กำลังศึกษา");
+        setTransferOutDate("");
+        setTransferToSchool("");
       } else {
         toast.error(res.error || "ไม่สามารถจัดห้องเรียนได้");
       }
@@ -272,6 +288,37 @@ export default function ManualEnrollmentForm({
             </div>
           </div>
 
+          {/* ส่วนแสดงฟอร์มเพิ่มเติม เมื่อเลือกสถานะ "ย้ายออก" */}
+          {status === "ย้ายออก" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border border-orange-200 bg-orange-50/50 rounded-lg dark:bg-orange-950/20 dark:border-orange-900 animate-in zoom-in-95 duration-200">
+              <div className="space-y-2">
+                <Label htmlFor="transferOutDate" className="text-xs font-medium text-orange-700 dark:text-orange-500">
+                  วันที่ย้ายออก
+                </Label>
+                <Input
+                  id="transferOutDate"
+                  type="date"
+                  value={transferOutDate}
+                  onChange={(e) => setTransferOutDate(e.target.value)}
+                  className="border-orange-200 focus-visible:ring-orange-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="transferToSchool" className="text-xs font-medium text-orange-700 dark:text-orange-500">
+                  โรงเรียนที่รับย้าย
+                </Label>
+                <Input
+                  id="transferToSchool"
+                  type="text"
+                  value={transferToSchool}
+                  onChange={(e) => setTransferToSchool(e.target.value)}
+                  placeholder="เช่น โรงเรียนตัวอย่างวิทยา"
+                  className="border-orange-200 focus-visible:ring-orange-500"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-muted/20 p-4 rounded-lg border">
             <div className="space-y-2">
               <Label htmlFor="manualLevel" className="text-xs font-medium text-muted-foreground">
@@ -329,6 +376,8 @@ export default function ManualEnrollmentForm({
               setClassRoom("");
               setStudentNumber("");
               setStatus("กำลังศึกษา");
+              setTransferOutDate("");
+              setTransferToSchool("");
             }}
             disabled={isPending}
             className="cursor-pointer"
