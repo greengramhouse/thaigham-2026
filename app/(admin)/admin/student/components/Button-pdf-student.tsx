@@ -124,7 +124,7 @@ const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear, selec
     const docDefinition: any = {
       pageMargins: [30, topMargin, 20, 20],
       pageOrientation: pageOrientation,
-      images: { logo: "https://res.cloudinary.com/gukkghu/image/upload/q_auto/f_auto/v1646575846/gukkghu/%E0%B8%87%E0%B8%B2%E0%B8%99%E0%B8%AD%E0%B8%AD%E0%B8%81%E0%B9%81%E0%B8%9A%E0%B8%9A%E0%B8%97%E0%B8%B5%E0%B9%88%E0%B9%84%E0%B8%A1%E0%B9%88%E0%B8%A1%E0%B8%B5%E0%B8%8A%E0%B8%B7%E0%B9%88%E0%B8%AD_aytvpq.png" }, // ปลดคอมเมนต์ในงานจริง
+      images: { logo: "https://res.cloudinary.com/gukkghu/image/upload/v1646575846/gukkghu/%E0%B8%87%E0%B8%B2%E0%B8%99%E0%B8%AD%E0%B8%AD%E0%B8%81%E0%B9%81%E0%B8%9A%E0%B8%9A%E0%B8%97%E0%B8%B5%E0%B9%88%E0%B9%84%E0%B8%A1%E0%B9%88%E0%B8%A1%E0%B8%B5%E0%B8%8A%E0%B8%B7%E0%B9%88%E0%B8%AD_aytvpq.png" }, // ปลดคอมเมนต์ในงานจริง
       header: function () {
         return {
           margin: [0, 15, 0, 0],
