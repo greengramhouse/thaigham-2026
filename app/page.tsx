@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { ArrowRight, LogIn, Sparkles } from "lucide-react";
+import { ArrowRight, LogIn, School, Sparkles } from "lucide-react";
 
 export default function Home() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
@@ -15,7 +15,9 @@ export default function Home() {
   const { data: session, isPending } = authClient.useSession();
 
   const handleStart = () => {
-    if (session) {
+    if (session && session.user.role === "admin") {
+      router.push("/admin/dashboard");
+    } else if (session && session.user.role === "user") {
       router.push("/dashboarduser");
     } else {
       router.push("/login"); // ยังไม่ได้ login ให้ไปหน้า login
@@ -55,22 +57,23 @@ export default function Home() {
         
         {/* Badge */}
         <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-300 backdrop-blur-sm mb-8 font-medium text-sm transition-all hover:bg-blue-500/20">
-          <Sparkles className="w-4 h-4" />
-          <span>The Next Generation Platform</span>
+          <School className="w-4 h-4" />
+          <span>ไทยงามธุรการ 4.0</span>
         </div>
 
         {/* Hero Title */}
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-6 drop-shadow-sm">
-          Experience Magic with <br className="hidden md:block" />
+        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white mb-6 drop-shadow-sm leading-normal">
+          ระบบจัดการข้อมูลนักเรียน <br className="hidden md:block " />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300">
-            BetterAuth Next
+            โรงเรียนชุมชนวัดไทยงาม
           </span>
         </h1>
 
         {/* Subtitle */}
         <p className="text-lg md:text-xl text-neutral-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-          สัมผัสประสบการณ์การใช้งานที่ลื่นไหล พร้อมระบบความปลอดภัยระดับสากล 
-          เริ่มต้นใช้งานวันนี้เพื่อเปิดประตูสู่แดชบอร์ดสุดเอ็กซ์คลูซีฟ
+          คนดี มีวินัย ใส่ใจรับผิดชอบ รอบคอบซื่อสัตย์ 
+          <br />
+          ปฏิบัติจิตอาสา นำพาความพอเพียง
         </p>
 
         {/* Action Buttons */}
