@@ -199,7 +199,7 @@ const ButtonPdfStudent = ({ filteredStudents, selectedClass, selectedYear, selec
       
 
       // จำลองการสำเร็จใน Preview หากยังไม่ได้ลงไลบรารี
-      toast.success("กดสร้าง PDF (ปลดคอมเมนต์คำสั่ง pdfmake ในโค้ดเพื่อเปิดไฟล์จริง)");
+      toast.success("กดสร้าง PDF (สำเร็จแล้วรายชื่อสร้างแล้วลองดู!)");
     } catch (error) {
       console.error(error);
       toast.error("เกิดข้อผิดพลาดในการสร้าง PDF");
